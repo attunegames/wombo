@@ -452,6 +452,21 @@ const server = http.createServer(async (req, res) => {
     return sendFile(req, res, clip.file, "video/mp4");
   }
 
+  // An /api miss answers in JSON. Falling through to the static handler sent
+  // back the plain text "not found", which the page then tried to parse as
+  // JSON - so calling a POST route with GET surfaced as "Unexpected token 'o'"
+  // and the real mistake was invisible. This is how Stop player looked broken.
+  if (url.pathname.startsWith("/api/")) {
+    const methods = Object.keys(routes)
+      .filter((k) => k.endsWith(` ${url.pathname}`))
+      .map((k) => k.split(" ")[0]);
+    return send(res, 404, JSON.stringify({
+      error: methods.length
+        ? `${url.pathname} needs ${methods.join(" or ")}, not ${req.method}`
+        : `no such endpoint: ${url.pathname}`,
+    }), { "Content-Type": "application/json" });
+  }
+
   // Static UI.
   const rel = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
   const file = path.join(WEB, rel);

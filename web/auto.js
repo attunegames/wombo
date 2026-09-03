@@ -86,7 +86,11 @@ export function mountSuggestions({ api, mmss, FPS, onPick }) {
         el("span", "sTitle", c.label ?? "clip"),
         tagChips(c.tags, c.yours),
       );
-      li.onclick = () => onPick(c);
+      // Stamp the source file on. Per-replay suggestions come from
+      // /api/analyze, which has no reason to repeat the file on every clip -
+      // only the cross-replay scan adds it - and the handler needs it to know
+      // which replay to open.
+      li.onclick = () => onPick({ ...c, replay: replay.file });
       list.append(li);
     }
   };

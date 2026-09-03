@@ -20,6 +20,10 @@ const el = (tag, cls, text) => {
   return n;
 };
 
+/** POST with no payload. `api(url)` alone sends a GET, which silently hits the
+ *  wrong route - that is what made Stop player do nothing for so long. */
+const post = (url, body = {}) => api(url, body);
+
 const api = async (url, body) => {
   const res = await fetch(url, body ? {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -662,7 +666,7 @@ $("#tStop").onclick = async () => {
   clearTimeout(player.endTimer);
   unbuffer();
   player.previewing = false;
-  await api("/api/player/stop");
+  await post("/api/player/stop");
   player.playing = false;
   if (SHELL) await window.clippiShell.dolphinDetached();
   $("#stageCover").hidden = true;
@@ -760,7 +764,9 @@ async function load(force = false) {
  * changes.
  */
 async function openSuggestion(c) {
-  const wasCurrent = state.current?.file === c.replay;
+  // No replay on the clip means it came from the panel under the player, which
+  // only ever shows the open replay.
+  const wasCurrent = !c.replay || state.current?.file === c.replay;
   if (!wasCurrent) {
     const r = state.replays.find((x) => x.file === c.replay);
     if (!r) return toast("That replay is no longer in the folder.", true);
