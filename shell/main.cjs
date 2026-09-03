@@ -566,6 +566,52 @@ ipcMain.handle("shell:isShell", async () => true);
  * play a clip, adopt the window, park it, and report. Used to prove the native
  * window adoption works rather than assuming it does.
  */
+/**
+ * Reproduce the reported hang: open an auto clip, let its range RUN OUT, then
+ * drag the seek bar. Only meaningful inside Electron - a browser tab has no
+ * clippiShell, so it skips every path this is trying to exercise.
+ */
+async function seekProbe() {
+  const js = (code) => win.webContents.executeJavaScript(code, true);
+  const log = (...a) => console.log('[seekprobe]', ...a);
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    await wait(4000);
+    await js(`[...document.querySelectorAll('.tab')].find(t => t.dataset.tab === 'auto').click()`);
+    for (let i = 0; i < 90; i++) {
+      await wait(1000);
+      if (await js(`document.querySelectorAll('#autoRows tr').length`) > 0) break;
+    }
+    log('opening an auto clip...');
+    await js(`document.querySelectorAll('#autoRows tr')[0].click()`);
+    for (let i = 0; i < 60; i++) {
+      await wait(1000);
+      if (await js(`document.querySelector('#stageCover').hidden`)) break;
+    }
+    log('playing at', await js(`document.querySelector('#tTime').textContent`),
+      'range', await js(`document.querySelector('#tRange').textContent`));
+    log('letting the clip run out (25s)...');
+    await wait(25000);
+    log('after it ended: audio bytes',
+      await js(`fetch('/api/player/audio').then(r => r.json()).then(j => j.bytes)`));
+    log('now dragging the seek bar, as reported...');
+    await js(`(() => { const s = document.querySelector('#tSeek');
+      s.value = 620;
+      s.dispatchEvent(new Event('input', { bubbles: true }));
+      s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    for (let i = 0; i < 45; i++) {
+      await wait(1000);
+      const covered = await js(`!document.querySelector('#stageCover').hidden`);
+      const toast = await js(`document.querySelector('#toast').hidden ? null : document.querySelector('#toast').textContent`);
+      if (toast) { log('FAILED after', i + 's:', toast); return; }
+      if (!covered && i > 3) {
+        log('recovered after', i + 's, clock', await js(`document.querySelector('#tTime').textContent`));
+        return;
+      }
+    }
+    log('still covered after 45s - hung');
+  } catch (err) { log('threw:', err.message); }
+}
 async function selfTest() {
   const log = (...a) => console.log("[selftest]", ...a);
   try {
@@ -854,7 +900,9 @@ app.whenReady().then(async () => {
   startMuter();
   watchForDolphin();
   watchPanelFit();
-  if (process.env.CLIPPI_SELFTEST) {
+  if (process.env.CLIPPI_SEEKPROBE) {
+    win.webContents.once("did-finish-load", () => { seekProbe(); });
+  } else if (process.env.CLIPPI_SELFTEST) {
     win.webContents.once("did-finish-load", () => {
       setTimeout(() => selfTest(process.env.CLIPPI_SELFTEST), 1500);
     });
