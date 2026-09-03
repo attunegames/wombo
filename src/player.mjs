@@ -95,7 +95,7 @@ export async function start(clip) {
     state.entries = clip ? [entryFor(clip)] : [];
     state.played = clip ? 1 : 0;
     state.queueFile = dolphin.writeQueue(state.entries, {
-      file: path.join(dolphin.CLIPPI_DATA, "player-queue.json"), overlay: true,
+      file: path.join(dolphin.WOMBO_DATA, "player-queue.json"), overlay: true,
     });
     // Launched hidden: Node's windowsHide puts SW_HIDE in the STARTUPINFO, and
     // wx honours it for the main frame, so the window never appears on the

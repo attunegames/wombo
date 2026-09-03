@@ -10,7 +10,7 @@ const EnumWindows = u.func("bool __stdcall EnumWindows(CbP* cb, intptr l)");
 const GetWindowTextW = u.func("int __stdcall GetWindowTextW(HP1 h, _Out_ uint16_t *b, int n)");
 const GetWindowRect = u.func("bool __stdcall GetWindowRect(HP1 h, _Out_ int32 *r)");
 const IsWindowVisible = u.func("bool __stdcall IsWindowVisible(HP1 h)");
-const OUT = fs.createWriteStream("C:/root/CLIPPI/vis-watch.log");
+const OUT = fs.createWriteStream("C:/root/WOMBO/vis-watch.log");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let found = null;
 const enumCb = koffi.register((h) => {

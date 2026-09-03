@@ -1,4 +1,4 @@
-// Clippi's page. One job: watch a replay, mark a start and an end, render that
+// Wombo's page. One job: watch a replay, mark a start and an end, render that
 // range to a video with a share link.
 //
 // The player is a real Dolphin window parked over #stage, which shapes almost
@@ -44,7 +44,7 @@ function toast(msg, bad = false) {
   toastTimer = setTimeout(() => { t.hidden = true; }, bad ? 7000 : 3500);
 }
 
-const SHELL = typeof window.clippiShell !== "undefined";
+const SHELL = typeof window.womboShell !== "undefined";
 const FPS = 60;
 
 const state = { replays: [], filtered: [], current: null };
@@ -198,7 +198,7 @@ const player = {
     // suspended, so Dolphin never acts on the new position - the clock runs on
     // and it looks like it is playing with the sound missing.
     if (this.paused && SHELL) {
-      await window.clippiShell.setPaused(false);
+      await window.womboShell.setPaused(false);
       this.paused = false;
     }
     this.seeking = true;
@@ -209,7 +209,7 @@ const player = {
     // Silence whatever is playing BEFORE measuring, so the baseline cannot be
     // inflated by the previous position still producing sound - otherwise the
     // very first reading looks like "new audio" and we uncover too early.
-    if (SHELL) await window.clippiShell.setPaused(true);
+    if (SHELL) await window.womboShell.setPaused(true);
     const audioBase = SHELL
       ? (await api("/api/player/audio").catch(() => ({ bytes: 0 }))).bytes
       : 0;
@@ -224,14 +224,14 @@ const player = {
         },
       });
     } catch (err) {
-      if (SHELL) await window.clippiShell.setPaused(false);
+      if (SHELL) await window.womboShell.setPaused(false);
       await uncover();
       this.seeking = false;
       return toast(err.message, true);
     }
     // Booting Melee and seeking inside a running replay need different rules.
     const booting = !!res?.booting;
-    if (SHELL) await window.clippiShell.setPaused(false);   // let it seek and play
+    if (SHELL) await window.womboShell.setPaused(false);   // let it seek and play
     const started = await whenAudible({ timeout: booting ? 60000 : 20000, base: audioBase,
       from: Math.max(-123, Math.round(frame)) });
     if (!started.ok) {
@@ -243,7 +243,7 @@ const player = {
       if (!retried) {
         cover("Restarting the player…");
         await post("/api/player/stop");
-        if (SHELL) await window.clippiShell.dolphinDetached();
+        if (SHELL) await window.womboShell.dolphinDetached();
         return this.playFrom(frame, { endFrame, retried: true });
       }
       await uncover();
@@ -251,7 +251,7 @@ const player = {
       this.playing = false;
       $("#tPlay").textContent = "▶";
       return toast("Could not get the player going, even after restarting it. "
-        + "If it keeps happening, close Clippi and reopen it.", true);
+        + "If it keeps happening, close Wombo and reopen it.", true);
     }
     this.originFrame = Math.max(0, Math.round(frame));
     this.originAt = Date.now();
@@ -272,7 +272,7 @@ const player = {
     // the process takes a beat, and the clock is derived - if it kept counting
     // until the call returned, the reported position would drift every pause.
     const at = Date.now();
-    const ok = SHELL ? (await window.clippiShell.setPaused(next)).ok : false;
+    const ok = SHELL ? (await window.womboShell.setPaused(next)).ok : false;
     if (!ok) return toast("Could not pause the player", true);
     if (next) {
       this.pausedAt = at;
@@ -310,11 +310,11 @@ const player = {
     if (SHELL && this.playing) {
       // A frozen emulator cannot act on a seek.
       if (this.paused) {
-        await window.clippiShell.setPaused(false);
+        await window.womboShell.setPaused(false);
         this.paused = false;
         $("#tPlay").textContent = "⏸";
       }
-      const res = await window.clippiShell.seekTo(this.markIn).catch(() => ({ ok: false }));
+      const res = await window.womboShell.seekTo(this.markIn).catch(() => ({ ok: false }));
       if (res?.ok) {
         this.originFrame = this.markIn;
         this.originAt = Date.now();
@@ -339,9 +339,9 @@ const player = {
       // running past the end of the clip, so without this the audio carries on
       // playing under the 'finished' panel.
       if (SHELL) {
-        await window.clippiShell.setPaused(true);
+        await window.womboShell.setPaused(true);
         this.paused = true;
-        await window.clippiShell.setPlayerVisible(false);
+        await window.womboShell.setPlayerVisible(false);
       }
       $("#stageCoverText").textContent = "Preview finished — render it, or adjust the marks.";
       $("#stageCover").querySelector(".spinner").hidden = true;
@@ -377,7 +377,7 @@ function cover(text) {
   // a stalled app: the bar keeps the position you asked for and shimmers.
   $("#transport").classList.add("buffering");
   $("#bufBar").hidden = false;
-  if (SHELL) window.clippiShell.setPlayerVisible(false);
+  if (SHELL) window.womboShell.setPlayerVisible(false);
 }
 
 function unbuffer() {
@@ -399,10 +399,10 @@ async function uncover() {
   coverPoll = null;
   unbuffer();
   if (!SHELL) { $("#stageCover").hidden = true; return; }
-  await window.clippiShell.setPaused(true);      // stop the sound immediately
-  await window.clippiShell.setPlayerVisible(true);
+  await window.womboShell.setPaused(true);      // stop the sound immediately
+  await window.womboShell.setPlayerVisible(true);
   $("#stageCover").hidden = true;
-  await window.clippiShell.setPaused(false);     // and start them together
+  await window.womboShell.setPaused(false);     // and start them together
 }
 
 /**
@@ -465,7 +465,7 @@ async function whenAudible({ timeout = 40000, base = null, from = null } = {}) {
     // The reload itself is unmistakable though: emulation drops to near zero
     // while the video thread keeps presenting. So wait to SEE it drop, and only
     // then wait for it to climb back.
-    const st = await window.clippiShell.stats().catch(() => null);
+    const st = await window.womboShell.stats().catch(() => null);
     const fps = st && typeof st.fps === "number" ? st.fps : null;
     if (fps == null) { await new Promise((r) => setTimeout(r, 120)); continue; }
     if (!dipped) {
@@ -652,7 +652,7 @@ for (const tab of document.querySelectorAll(".tab")) {
       : tab.dataset.tab === "replays" ? $("#replayPlayerHost") : null;
     if (host && $("#playerPane").parentElement !== host) host.append($("#playerPane"));
     // The player must not float over the clip library.
-    if (SHELL) window.clippiShell.setPlayerVisible(!!host && player.playing);
+    if (SHELL) window.womboShell.setPlayerVisible(!!host && player.playing);
     if (host) reportStage?.();
     if (tab.dataset.tab === "library") loadLibrary();
     if (tab.dataset.tab === "auto") autoTab?.open();
@@ -678,7 +678,7 @@ $("#tStop").onclick = async () => {
   player.previewing = false;
   await post("/api/player/stop");
   player.playing = false;
-  if (SHELL) await window.clippiShell.dolphinDetached();
+  if (SHELL) await window.womboShell.dolphinDetached();
   $("#stageCover").hidden = true;
   $("#stageIdle").hidden = false;
   $("#tPlay").textContent = "▶";
@@ -705,11 +705,11 @@ $("#tSeek").onchange = async () => {
     // A frozen emulator cannot act on a seek, and this path bypasses playFrom,
     // which used to be what un-froze it. Resume first or the clock stops dead.
     if (player.paused) {
-      await window.clippiShell.setPaused(false);
+      await window.womboShell.setPaused(false);
       player.paused = false;
       $("#tPlay").textContent = "⏸";
     }
-    const res = await window.clippiShell.seekTo(frame).catch(() => ({ ok: false }));
+    const res = await window.womboShell.seekTo(frame).catch(() => ({ ok: false }));
     if (res?.ok) {
       player.originFrame = frame;      // re-anchor the clock to the new position
       player.originAt = Date.now();
@@ -731,7 +731,7 @@ let reportStage = null;
 if (SHELL) {
   const report = () => {
     const r = $("#stage").getBoundingClientRect();
-    window.clippiShell.setStageBounds({
+    window.womboShell.setStageBounds({
       x: Math.round(r.left), y: Math.round(r.top),
       width: Math.round(r.width), height: Math.round(r.height),
     });

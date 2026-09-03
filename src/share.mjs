@@ -68,11 +68,11 @@ async function verifyUpload(url, expectedBytes, { attempts = 4, signal } = {}) {
  * hash without touching a single frame, so the retry lands on a new entry.
  */
 async function nudgedCopy(file) {
-  const out = path.join(os.tmpdir(), `clippi-reshare-${Date.now()}.mp4`);
+  const out = path.join(os.tmpdir(), `wombo-reshare-${Date.now()}.mp4`);
   await execFileAsync("ffmpeg", [
     "-v", "error", "-y", "-i", file,
     "-c", "copy",                       // no re-encode: same video, new bytes
-    "-metadata", `comment=clippi-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    "-metadata", `comment=wombo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
     "-movflags", "+faststart", out,
   ]);
   return out;
@@ -88,7 +88,7 @@ async function postToCatbox(file, userhash, signal) {
     method: "POST",
     body: form,
     signal,
-    headers: { "User-Agent": "Clippi/0.1 (Slippi clip tool)" },
+    headers: { "User-Agent": "Wombo/0.1 (Slippi clip tool)" },
   });
   const text = (await res.text()).trim();
   if (!res.ok) throw new Error(`catbox refused the upload (${res.status}): ${text.slice(0, 200)}`);
@@ -166,7 +166,7 @@ HOSTS.litterbox = {
     form.append("fileToUpload", await fs.openAsBlob(file), path.basename(file));
     const res = await fetch("https://litterbox.catbox.moe/resources/internals/api.php", {
       method: "POST", body: form, signal,
-      headers: { "User-Agent": "Clippi/0.1 (Slippi clip tool)" },
+      headers: { "User-Agent": "Wombo/0.1 (Slippi clip tool)" },
     });
     const text = (await res.text()).trim();
     if (!res.ok || !/^https?:\/\//.test(text)) {
@@ -203,7 +203,7 @@ HOSTS.uguu = {
     form.append("files[]", await fs.openAsBlob(file), path.basename(file));
     const res = await fetch("https://uguu.se/upload?output=text", {
       method: "POST", body: form, signal,
-      headers: { "User-Agent": "Clippi/0.1 (Slippi clip tool)" },
+      headers: { "User-Agent": "Wombo/0.1 (Slippi clip tool)" },
     });
     const text = (await res.text()).trim();
     if (!res.ok || !/^https?:\/\//.test(text)) {

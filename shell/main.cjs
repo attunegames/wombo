@@ -1,4 +1,4 @@
-// Clippi as one window: the clip list and Melee side by side.
+// Wombo as one window: the clip list and Melee side by side.
 //
 // Electron hosts the same web UI the browser serves, and Dolphin's own window is
 // adopted into it (see win32.mjs). The page leaves a hole where the player goes
@@ -11,7 +11,7 @@ const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
-const PORT = Number(process.env.CLIPPI_PORT ?? 5730);
+const PORT = Number(process.env.WOMBO_PORT ?? 5730);
 const ROOT = path.join(__dirname, "..");
 
 let win = null;
@@ -50,7 +50,7 @@ function startServer() {
   return new Promise((resolve) => {
     server = spawn(process.execPath, [path.join(ROOT, "serve.mjs")], {
       cwd: ROOT,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", CLIPPI_PORT: String(PORT) },
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", WOMBO_PORT: String(PORT) },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -85,7 +85,7 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     backgroundColor: "#0e1116",
-    title: "Clippi",
+    title: "Wombo",
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -106,7 +106,7 @@ function createWindow() {
   });
   win.webContents.on("did-finish-load", async () => {
     const seen = await win.webContents.executeJavaScript(
-      "({ bridge: typeof window.clippiShell, stage: !!document.querySelector('#stage'), transport: !!document.querySelector('#tPlay'), replays: document.querySelectorAll('#replayList li').length })");
+      "({ bridge: typeof window.womboShell, stage: !!document.querySelector('#stage'), transport: !!document.querySelector('#tPlay'), replays: document.querySelectorAll('#replayList li').length })");
     console.log("[shell] renderer sees:", JSON.stringify(seen));
   });
 
@@ -562,14 +562,14 @@ ipcMain.handle("shell:isShell", async () => true);
 // --- lifecycle -------------------------------------------------------------
 
 /**
- * CLIPPI_SELFTEST=<replay path> drives the whole embed path without a human:
+ * WOMBO_SELFTEST=<replay path> drives the whole embed path without a human:
  * play a clip, adopt the window, park it, and report. Used to prove the native
  * window adoption works rather than assuming it does.
  */
 /**
  * Reproduce the reported hang: open an auto clip, let its range RUN OUT, then
  * drag the seek bar. Only meaningful inside Electron - a browser tab has no
- * clippiShell, so it skips every path this is trying to exercise.
+ * womboShell, so it skips every path this is trying to exercise.
  */
 async function seekProbe() {
   const js = (code) => win.webContents.executeJavaScript(code, true);
@@ -650,7 +650,7 @@ async function selfTest() {
       const hidden = await js(`document.querySelector('#stageCover').hidden`);
       if (hidden) { log(`cover lifted after ${i + 1}s`); break; }
       if (i % 10 === 9) log(`  still covered (${i + 1}s), fps=`,
-        JSON.stringify(await js(`window.clippiShell.stats()`)));
+        JSON.stringify(await js(`window.womboShell.stats()`)));
     }
     const t1 = await js(`document.querySelector('#tTime').textContent`);
     await new Promise((r) => setTimeout(r, 3000));
@@ -667,12 +667,12 @@ async function selfTest() {
     // Seeking now goes through Slippi's own seek bar: in place, no reload, so
     // no start jingle and no white flash. Check it lands and keeps playing.
     log("in-place seek via Slippi's seek bar...");
-    const before = await js(`window.clippiShell.seekInfo()`);
+    const before = await js(`window.womboShell.seekInfo()`);
     log("  seek bar reports frame", before?.frame, "range", before?.first + ".." + before?.last);
     const targetFrame = Math.round(before.first + (before.last - before.first) * 0.6);
-    const seeked = await js(`window.clippiShell.seekTo(${targetFrame})`);
+    const seeked = await js(`window.womboShell.seekTo(${targetFrame})`);
     await new Promise((r) => setTimeout(r, 2000));
-    const after = await js(`window.clippiShell.seekInfo()`);
+    const after = await js(`window.womboShell.seekInfo()`);
     log(`  asked for ${targetFrame}, landed ${after?.frame} (${seeked?.ok ? "ok" : "FAILED"})`);
     log("  cover shown during seek:", await js(`!document.querySelector('#stageCover').hidden`),
       "(false = seamless, no buffering screen)");
@@ -694,7 +694,7 @@ async function selfTest() {
     const s1 = await js(`document.querySelector('#tTime').textContent`);
     await new Promise((r) => setTimeout(r, 3000));
     const s2 = await js(`document.querySelector('#tTime').textContent`);
-    const fpsNow = await js(`window.clippiShell.stats()`);
+    const fpsNow = await js(`window.womboShell.stats()`);
     log(`after seek-while-paused: ${s1} -> ${s2}`, s1 !== s2 ? "(running)" : "(STUCK)",
       "fps=", JSON.stringify(fpsNow?.fps));
 
@@ -734,7 +734,7 @@ async function selfTest() {
     // gone idle (queue finished early) while the page still thinks it plays.
     for (let i = 0; i < 20; i++) {
       const clock = await js(`document.querySelector('#tTime').textContent`);
-      const st = await js(`window.clippiShell.stats()`);
+      const st = await js(`window.womboShell.stats()`);
       const covered = await js(`!document.querySelector('#stageCover').hidden`);
       log(`  t+${i}s clock=${clock} fps=${JSON.stringify(st?.fps)} ` +
         `title=${JSON.stringify((st?.title || "").slice(-28))} covered=${covered}`);
@@ -900,11 +900,11 @@ app.whenReady().then(async () => {
   startMuter();
   watchForDolphin();
   watchPanelFit();
-  if (process.env.CLIPPI_SEEKPROBE) {
+  if (process.env.WOMBO_SEEKPROBE) {
     win.webContents.once("did-finish-load", () => { seekProbe(); });
-  } else if (process.env.CLIPPI_SELFTEST) {
+  } else if (process.env.WOMBO_SELFTEST) {
     win.webContents.once("did-finish-load", () => {
-      setTimeout(() => selfTest(process.env.CLIPPI_SELFTEST), 1500);
+      setTimeout(() => selfTest(process.env.WOMBO_SELFTEST), 1500);
     });
   }
 });

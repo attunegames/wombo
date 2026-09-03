@@ -2,7 +2,7 @@
 //
 // Windows lets you adopt another process's top-level window as a child of your
 // own with SetParent. Once adopted it stops being a separate taskbar entry and
-// lives wherever we put it, so Clippi becomes one window with the clip list on
+// lives wherever we put it, so Wombo becomes one window with the clip list on
 // one side and Melee playing on the other.
 //
 // Two details make or break it:
@@ -56,7 +56,7 @@ const GetWindowThreadProcessId = user32.func("uint32 __stdcall GetWindowThreadPr
  * It must NOT be the whole process. NtSuspendProcess freezes Dolphin's GUI
  * thread too, and its window is owned by ours, so Windows has to talk to that
  * frozen window whenever anything touches it - z-order, activation, a title
- * read. Those calls are synchronous and never return, which hangs Clippi
+ * read. Those calls are synchronous and never return, which hangs Wombo
  * itself. Leaving the window's own thread running keeps it answering messages
  * while the emulator stops dead.
  */
@@ -129,7 +129,7 @@ const asHandle = (n) => koffi.as(BigInt(n), HWND);
  * top-level window and that surface composites over native child windows. You
  * get audio and a black panel.
  *
- * Setting Clippi as the OWNER instead keeps Dolphin a top-level window with its
+ * Setting Wombo as the OWNER instead keeps Dolphin a top-level window with its
  * own render surface, so it actually draws, while Windows guarantees it stays
  * above its owner and minimises and restores with it. WS_EX_TOOLWINDOW keeps it
  * out of the taskbar and alt-tab, so it reads as part of the app rather than a

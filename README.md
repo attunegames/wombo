@@ -1,4 +1,4 @@
-# Clippi
+# Wombo
 
 Turn Slippi replays into shareable Melee clips.
 
@@ -13,13 +13,13 @@ nothing to configure. (Hosted links are parked — see *Sharing* below.)
 
 ## Get it
 
-Download the latest release, unzip it anywhere, and run **`Clippi.exe`**.
+Download the latest release, unzip it anywhere, and run **`Wombo.exe`**.
 There is no installer and nothing is written outside your user folder.
 
 You also need:
 
 - **Slippi Launcher**, with the playback build present (watch one replay
-  through it once) and your Melee ISO configured. Clippi reads both from
+  through it once) and your Melee ISO configured. Wombo reads both from
   Slippi's own settings.
 - **ffmpeg** on your PATH — this is what actually encodes the video:
 
@@ -27,7 +27,7 @@ You also need:
   winget install Gyan.FFmpeg
   ```
 
-  Clippi tells you in the window if it cannot find it.
+  Wombo tells you in the window if it cannot find it.
 
 ## Running from source
 
@@ -35,14 +35,14 @@ You also need:
 npm install
 npm run shell     # the single-window app
 npm start         # or just the server, then open http://localhost:5730
-npm run package   # build dist/Clippi-win32-x64/
+npm run package   # build dist/Wombo-win32-x64/
 ```
 
 ## How it works
 
 There is no headless Melee renderer, so the only honest way to get video out of
 a `.slp` is to make Slippi's playback Dolphin play it while dumping frames.
-Clippi does exactly that, in a sandbox:
+Wombo does exactly that, in a sandbox:
 
 1. **Detect** — `src/detect.mjs` runs slippi-js stats over the replay and scores
    every *conversion* (one player's uninterrupted punish). Kills, damage, hit
@@ -79,7 +79,7 @@ Slippi update. (The Slippi Launcher is an Electron app driving Dolphin for
 exactly this reason.)
 
 The cheaper answer is to take Dolphin's window rather than draw inside it.
-Clippi runs as an Electron window, leaves a hole in the page for the player, and
+Wombo runs as an Electron window, leaves a hole in the page for the player, and
 parks Dolphin over it.
 
 **Do not use `SetParent`.** Making Dolphin a child of the Electron window works
@@ -91,7 +91,7 @@ children confirms why there is no way around it: Chromium has no child HWND of
 its own to sit behind, so there is no z-order to win. You get audio and an empty
 panel.
 
-Instead Clippi is made the window's **owner** (`GWLP_HWNDPARENT`), not its
+Instead Wombo is made the window's **owner** (`GWLP_HWNDPARENT`), not its
 parent. Dolphin stays top-level, so it keeps its own render surface and actually
 draws, while Windows guarantees an owned window sits above its owner and
 minimises and restores with it. `WS_EX_TOOLWINDOW` keeps it out of the taskbar
@@ -120,7 +120,7 @@ otherwise open a Dolphin the app never claims — which looks exactly like the
 embedding being broken. A 2-second watcher removes that whole class of
 confusion, and re-adopts after the player is stopped and restarted.
 
-`CLIPPI_SELFTEST=1 npm run shell` drives the whole path with no human: it walks
+`WOMBO_SELFTEST=1 npm run shell` drives the whole path with no human: it walks
 the replay list until one yields clips, **clicks the ▶ Dolphin button in the
 page**, and reports whether the window got adopted. It deliberately goes through
 the renderer — an earlier version called the attach directly from the main
@@ -206,7 +206,7 @@ making Dolphin cheap and rare. Two ways, on every clip row:
 **Preview** renders a *draft*: 360p, native internal resolution, crf 30. About
 **800KB against 8MB** for the same clip, and it plays inline in the page. Drafts
 are cached by clip identity (replay + in + out), so looking again is ~100ms and
-costs nothing. They live in `%APPDATA%\Clippi\drafts`, not your Videos folder,
+costs nothing. They live in `%APPDATA%\Wombo\drafts`, not your Videos folder,
 and the newest 60 are kept.
 
 **Preview selected** drafts everything you ticked in **one Dolphin launch**.
@@ -291,8 +291,8 @@ analysis)" so you know which path produced the list.
 ## Your Slippi install is not touched
 
 On first run the playback build (~35MB) is robocopied to
-`%APPDATA%\Clippi\playback` and every config change lands there. The real
-install, your replays, and your netplay settings are read-only to Clippi. This
+`%APPDATA%\Wombo\playback` and every config change lands there. The real
+install, your replays, and your netplay settings are read-only to Wombo. This
 is the same sandboxing Peppy uses.
 
 ## Sharing
@@ -310,7 +310,7 @@ Until a host worth trusting is wired in, **Copy for Discord** does the job: it
 puts the `.mp4` on your clipboard and Discord does the upload when you paste.
 Works in servers and DMs, no account, nothing to configure.
 
-Renders always stay local first (`%USERPROFILE%\Videos\Clippi`). Nothing leaves
+Renders always stay local first (`%USERPROFILE%\Videos\Wombo`). Nothing leaves
 your machine unless you press a button that says it will.
 
 ## Files
@@ -341,7 +341,7 @@ Everything lives in `src/detect.mjs`. The two knobs you will actually want:
 
 - Windows. The single-window app uses Win32 calls to park Dolphin in the page.
 - Slippi Launcher, with the playback build present (watch one replay through it
-  once) and your Melee ISO configured. Clippi reads both from Slippi's own
+  once) and your Melee ISO configured. Wombo reads both from Slippi's own
   settings — it ships no game files and cannot help you obtain any.
 - `ffmpeg` on PATH.
 - Node 20+ (uses `fs.openAsBlob`).
@@ -353,4 +353,4 @@ Everything lives in `src/detect.mjs`. The two knobs you will actually want:
 - Doubles scoring was tuned on 1v1, and doubles clips have no `openingType`, so
   the neutral-win bonus never applies to them.
 - The first scan of a large replay folder parses every file; after that it is
-  cached against size+mtime in `%APPDATA%\Clippi\index.json`.
+  cached against size+mtime in `%APPDATA%\Wombo\index.json`.

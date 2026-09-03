@@ -1,4 +1,4 @@
-// Suggested clips: the ones Clippi finds by reading the replays, rather than
+// Suggested clips: the ones Wombo finds by reading the replays, rather than
 // the ones you mark by hand.
 //
 // Two surfaces, one detector:

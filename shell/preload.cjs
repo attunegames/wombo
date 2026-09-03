@@ -4,7 +4,7 @@
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("clippiShell", {
+contextBridge.exposeInMainWorld("womboShell", {
   isShell: true,
   setStageBounds: (bounds) => ipcRenderer.invoke("stage:bounds", bounds),
   attachDolphin: () => ipcRenderer.invoke("dolphin:attach"),

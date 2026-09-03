@@ -14,7 +14,7 @@ const GetWindowTextW = u.func("int __stdcall GetWindowTextW(HP1 h, _Out_ uint16_
 const GetWindowRect = u.func("bool __stdcall GetWindowRect(HP1 h, _Out_ int32 *r)");
 const IsWindowVisible = u.func("bool __stdcall IsWindowVisible(HP1 h)");
 
-const OUT = "C:/root/CLIPPI/flash-probe.json";
+const OUT = "C:/root/WOMBO/flash-probe.json";
 // Pass a .slp path as the first argument.
 const REPLAY = process.argv[2];
 if (!REPLAY) { console.error("usage: node tools/flash-probe.mjs <replay.slp>"); process.exit(1); }

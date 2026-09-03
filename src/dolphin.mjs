@@ -1,4 +1,4 @@
-// CLIPPI: owns a private sandbox copy of the user's Slippi PLAYBACK Dolphin,
+// WOMBO: owns a private sandbox copy of the user's Slippi PLAYBACK Dolphin,
 // writes the frame-dump configs, and runs a clip queue headlessly.
 //
 // The user's real Slippi install is never modified. We copy it once (35MB) and
@@ -17,8 +17,29 @@ import path from "node:path";
 
 const APPDATA = process.env.APPDATA;
 const SLIPPI_DIR = path.join(APPDATA, "Slippi Launcher");
-export const CLIPPI_DATA = path.join(APPDATA, "Clippi");
-const SANDBOX = path.join(CLIPPI_DATA, "playback");
+export const WOMBO_DATA = path.join(APPDATA, "Wombo");
+
+// The app used to be called Clippi, so carry the old data over - settings, the
+// clip library and the replay index, which costs minutes to rebuild.
+//
+// Copy named files rather than renaming the folder. Electron ALSO uses this
+// directory for its own caches and creates it before this code runs, so "the
+// new folder does not exist yet" is not a usable test; and renaming it races
+// the server child, which resolved its paths a moment earlier and will happily
+// recreate the old directory underneath you. Copying leaves the old data in
+// place as a fallback and is safe to run twice.
+const LEGACY_DATA = path.join(APPDATA, "Clippi");
+if (fs.existsSync(LEGACY_DATA)) {
+  try {
+    fs.mkdirSync(WOMBO_DATA, { recursive: true });
+    for (const name of ["config.json", "clips.json", "index.json", "clipcache.json", "drafts.json"]) {
+      const from = path.join(LEGACY_DATA, name);
+      const to = path.join(WOMBO_DATA, name);
+      if (fs.existsSync(from) && !fs.existsSync(to)) fs.copyFileSync(from, to);
+    }
+  } catch { /* a locked file just means some of it rebuilds */ }
+}
+const SANDBOX = path.join(WOMBO_DATA, "playback");
 
 export const EXE = "Slippi Dolphin.exe";
 
@@ -64,7 +85,7 @@ export function ensureSandbox() {
   const stale = !fs.existsSync(dstExe) ||
     fs.statSync(srcExe).mtimeMs !== fs.statSync(dstExe).mtimeMs;
   if (stale) {
-    fs.mkdirSync(CLIPPI_DATA, { recursive: true });
+    fs.mkdirSync(WOMBO_DATA, { recursive: true });
     try {
       execFileSync("robocopy", [playback, SANDBOX, "/E", "/XD", "Cache", "Dump",
         "ScreenShots", "Logs", "/NFL", "/NDL", "/NJH", "/NJS"], { stdio: "ignore" });
@@ -140,7 +161,7 @@ export function writeRenderConfigs({
     Interface: {
       ConfirmStop: "False", OnScreenDisplayMessages: B(!dump),
       PauseOnFocusLost: "False",
-      // Docked into Clippi, Dolphin should show gameplay and nothing else - its
+      // Docked into Wombo, Dolphin should show gameplay and nothing else - its
       // toolbar, status bar and seek bar are replaced by the app's own controls.
       ShowToolbar: B(chrome),
       ShowStatusbar: B(chrome),
@@ -203,7 +224,7 @@ export function clearDump() {
 let commandSeq = 0;
 
 export function writeQueue(queue, { realTime = false, file, overlay = false } = {}) {
-  const target = file || path.join(CLIPPI_DATA, "queue.json");
+  const target = file || path.join(WOMBO_DATA, "queue.json");
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, JSON.stringify({
     mode: "queue",
@@ -213,7 +234,7 @@ export function writeQueue(queue, { realTime = false, file, overlay = false } = 
     // the command it is already running - which is why seeking appeared to do
     // nothing. With a new id it drops what it is playing and starts the new
     // queue immediately.
-    commandId: `clippi-${Date.now()}-${(commandSeq += 1)}`,
+    commandId: `wombo-${Date.now()}-${(commandSeq += 1)}`,
     isRealTimeMode: realTime,
     outputOverlayFiles: overlay,
     queue: queue.map((q) => ({

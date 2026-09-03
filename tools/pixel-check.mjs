@@ -21,7 +21,7 @@ const DeleteObject = g.func("bool __stdcall DeleteObject(HPX o)");
 const DeleteDC = g.func("bool __stdcall DeleteDC(HPX dc)");
 const GetDIBits = g.func("int __stdcall GetDIBits(HPX dc, HPX bmp, uint32 start, uint32 lines, _Out_ uint8_t *bits, void *bi, uint32 usage)");
 
-const OUT = "C:/root/CLIPPI/px.txt";
+const OUT = "C:/root/WOMBO/px.txt";
 fs.writeFileSync(OUT, "");
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -27,7 +27,7 @@ try {
   const res = await fetch(`http://127.0.0.1:${port}/`, {
     method: "POST",
     body: form,
-    headers: { "User-Agent": "Clippi/0.1 (Slippi clip tool)" },
+    headers: { "User-Agent": "Wombo/0.1 (Slippi clip tool)" },
   });
   await res.text();
 } catch (e) { err = e; }

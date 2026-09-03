@@ -1,4 +1,4 @@
-// Clippi's local server: the UI is a plain web page, this is everything it can
+// Wombo's local server: the UI is a plain web page, this is everything it can
 // ask for. Bound to 127.0.0.1 on purpose - it can start Dolphin and upload
 // files, so it is not something to expose on a network.
 
@@ -20,7 +20,7 @@ const execFileAsync = promisify(execFile);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.join(HERE, "web");
-const PORT = Number(process.env.CLIPPI_PORT ?? 5730);
+const PORT = Number(process.env.WOMBO_PORT ?? 5730);
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -479,7 +479,7 @@ const server = http.createServer(async (req, res) => {
 await player.reconcile();
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Clippi  ->  http://localhost:${PORT}`);
+  console.log(`Wombo  ->  http://localhost:${PORT}`);
   const cfg = lib.getConfig();
   console.log(`replays: ${cfg.replayDir ?? "(not found)"}`);
   console.log(`clips:   ${cfg.outputDir}`);

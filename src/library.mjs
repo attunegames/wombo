@@ -1,4 +1,4 @@
-// The two things Clippi remembers: what replays exist, and what clips we made.
+// The two things Wombo remembers: what replays exist, and what clips we made.
 //
 // Parsing a .slp costs real time (getStats walks every frame), and the replay
 // folder here has hundreds of files, so both the per-file header and the
@@ -8,17 +8,17 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { CLIPPI_DATA, replayDir } from "./dolphin.mjs";
+import { WOMBO_DATA, replayDir } from "./dolphin.mjs";
 import { analyzeRaw, findClips, rankFor, readHeader } from "./detect.mjs";
 
-const INDEX_FILE = path.join(CLIPPI_DATA, "index.json");
-const CLIPCACHE_FILE = path.join(CLIPPI_DATA, "clipcache.json");
-const CLIPS_FILE = path.join(CLIPPI_DATA, "clips.json");
-const CONFIG_FILE = path.join(CLIPPI_DATA, "config.json");
+const INDEX_FILE = path.join(WOMBO_DATA, "index.json");
+const CLIPCACHE_FILE = path.join(WOMBO_DATA, "clipcache.json");
+const CLIPS_FILE = path.join(WOMBO_DATA, "clips.json");
+const CONFIG_FILE = path.join(WOMBO_DATA, "config.json");
 
 const DEFAULT_CONFIG = {
   replayDir: null,          // null = ask Slippi
-  outputDir: path.join(process.env.USERPROFILE ?? CLIPPI_DATA, "Videos", "Clippi"),
+  outputDir: path.join(process.env.USERPROFILE ?? WOMBO_DATA, "Videos", "Wombo"),
   perspective: null,        // your connect code, e.g. "BIRD#704"
   quality: "good",
   host: "catbox",
@@ -229,8 +229,8 @@ export async function analyzeAll({ days = null, limit = 80, onProgress, shouldSt
 // app data rather than the user's Videos folder, and are keyed by exactly what
 // defines the clip, so re-previewing the same moment is free.
 
-const DRAFTS_DIR = path.join(CLIPPI_DATA, "drafts");
-const DRAFTS_FILE = path.join(CLIPPI_DATA, "drafts.json");
+const DRAFTS_DIR = path.join(WOMBO_DATA, "drafts");
+const DRAFTS_FILE = path.join(WOMBO_DATA, "drafts.json");
 
 export const draftsDir = () => DRAFTS_DIR;
 

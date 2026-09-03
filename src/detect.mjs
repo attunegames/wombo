@@ -1,4 +1,4 @@
-// Finding the moments worth clipping inside a .slp.
+// Finding the moments worth wombong inside a .slp.
 //
 // Slippi's own stats already segment a game into "conversions" (one player's
 // uninterrupted punish on the other). That is almost exactly a clip: it starts
