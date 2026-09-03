@@ -1,7 +1,7 @@
 {
   "name": "clippi",
   "productName": "Clippi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turn Slippi replays into shareable Melee highlight clips.",
   "type": "module",
   "main": "shell/main.cjs",
