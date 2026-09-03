@@ -1,0 +1,14 @@
+import { createRequire } from "node:module";
+const { SlippiGame } = createRequire(import.meta.url)("@slippi/slippi-js/node");
+const f = process.argv[2];
+const g = new SlippiGame(f);
+const s = g.getSettings();
+const m = g.getMetadata();
+const st = g.getStats();
+console.log("stage", s.stageId, "players", s.players.map(p=>({i:p.playerIndex,port:p.port,ch:p.characterId,type:p.type,code:p.connectCode,tag:p.displayName,nametag:p.nametag})));
+console.log("meta lastFrame", m?.lastFrame, "startAt", m?.startAt, "names", JSON.stringify(m?.players));
+console.log("stats keys", Object.keys(st));
+console.log("conversions", st.conversions.length, "combos", st.combos.length, "stocks", st.stocks.length);
+console.log("sample conv", JSON.stringify(st.conversions.slice(0,2), null, 1));
+console.log("sample stock", JSON.stringify(st.stocks.slice(0,2), null, 1));
+console.log("overall", JSON.stringify(st.overall?.map(o=>({idx:o.playerIndex,kills:o.killCount,dmg:o.totalDamage,inputsPerMin:o.inputsPerMinute?.ratio})), null, 1));

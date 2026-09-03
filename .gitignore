@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# Working files from development and diagnostics
+*.log
+px*.txt
+vis-watch.log
+flash-probe.json
+shell.log
+server.log
+
+# Anything a run drops here
+/clips/
+/out/

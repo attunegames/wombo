@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clippi</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>CLIPPI</h1>
+  <nav>
+    <button class="tab on" data-tab="replays">Replays</button>
+    <button class="tab" data-tab="auto">Auto Clips <span id="autoCount"></span></button>
+    <button class="tab" data-tab="library">My Clips <span id="libCount"></span></button>
+  </nav>
+  <div class="spacer"></div>
+  <label class="field">Quality
+    <select id="quality"></select>
+  </label>
+  <span id="playerChip" class="me live" hidden></span>
+  <button id="rescan" class="ghost" title="Re-read the replay folder">Rescan</button>
+</header>
+
+<section id="tab-replays" class="tabpane on">
+  <aside id="replayPane">
+    <div class="paneHead">
+      <input id="search" type="search" placeholder="Search character, code, stage…" autocomplete="off">
+      <span id="replayCount" class="dim"></span>
+    </div>
+    <ul id="replayList"></ul>
+  </aside>
+
+  <!-- The player lives here, but it is MOVED into the Auto Clips tab when that
+       tab is shown - one Dolphin, one transport, so both tabs behave the same. -->
+  <div id="replayPlayerHost"></div>
+</section>
+
+<section id="tab-auto" class="tabpane">
+  <aside id="autoFilters">
+    <div class="paneHead">
+      <strong>Filters</strong>
+      <span class="spacer"></span>
+      <button id="autoReset" class="ghost">Reset</button>
+    </div>
+    <div class="filterScroll">
+      <div class="fGroup">
+        <h4>When</h4>
+        <div class="segmented" id="fGrain">
+          <button class="seg on" data-grain="day">Day</button>
+          <button class="seg" data-grain="month">Month</button>
+          <button class="seg" data-grain="year">Year</button>
+        </div>
+        <div id="fDays" class="dayList"></div>
+        <p class="dim fHint">Nothing ticked covers the lot.</p>
+      </div>
+
+      <div class="fGroup">
+        <h4>Whose clip</h4>
+        <label class="fRow"><input type="radio" name="autoWho" value="all" checked> Everyone</label>
+        <label class="fRow"><input type="radio" name="autoWho" value="mine"> Just mine</label>
+        <label class="fRow"><input type="radio" name="autoWho" value="theirs"> Just my opponent's</label>
+      </div>
+
+      <div class="fGroup">
+        <h4>What happened</h4>
+        <div id="fTags"></div>
+        <p class="dim fHint">No tags ticked shows everything.</p>
+      </div>
+
+      <div class="fGroup">
+        <h4>Character doing it</h4>
+        <select id="fByChar"><option value="">Any character</option></select>
+        <h4>Character it happened to</h4>
+        <select id="fOnChar"><option value="">Any character</option></select>
+      </div>
+
+      <div class="fGroup">
+        <h4>Player</h4>
+        <select id="fPlayer"><option value="">Any player</option></select>
+        <p class="dim fHint">Matches whoever pulled the clip off.</p>
+      </div>
+
+      <div class="fGroup">
+        <h4>Minimum damage</h4>
+        <input id="fDamage" type="range" min="0" max="150" step="5" value="0">
+        <span id="fDamageVal" class="dim">any</span>
+      </div>
+    </div>
+  </aside>
+
+  <div id="autoMain">
+    <div class="paneHead">
+      <span id="autoStatus" class="dim">Scanning replays…</span>
+      <div class="bar" id="autoBar"><i></i></div>
+      <span class="spacer"></span>
+      <span id="autoShown" class="dim"></span>
+      <button id="autoRescan" class="ghost" title="Re-analyse every replay">Re-scan</button>
+    </div>
+    <div id="autoTableWrap">
+      <table id="autoTable">
+        <thead>
+          <tr>
+            <th data-sort="startAt">When</th>
+            <th data-sort="label">Clip</th>
+            <th data-sort="byName">By</th>
+            <th data-sort="onName">On</th>
+            <th data-sort="tags">Tags</th>
+            <th data-sort="damage" class="num">Dmg</th>
+            <th data-sort="hitCount" class="num">Hits</th>
+            <th data-sort="durationSec" class="num">Len</th>
+            <th data-sort="score" class="num sorted">Score</th>
+          </tr>
+        </thead>
+        <tbody id="autoRows"></tbody>
+      </table>
+      <p id="autoEmpty" class="empty dim" hidden>Nothing matches those filters.</p>
+    </div>
+  </div>
+
+  <!-- The player is moved in here while this tab is open. -->
+  <div id="autoPlayerHost"></div>
+</section>
+
+<section id="tab-library" class="tabpane">
+  <div id="libEmpty" class="empty">
+    <p><strong>No clips rendered yet.</strong></p>
+    <p class="dim">Mark a start and an end on a replay, hit Render clip, and it lands here with a share link.</p>
+  </div>
+  <div id="libGrid"></div>
+</section>
+
+<!-- Detached on purpose: this whole block is relocated between the Replays and
+     Auto Clips tabs so there is only ever one player to reason about. -->
+<main id="playerPane">
+  <div id="stage">
+    <div id="stageIdle">
+      <p><strong>Pick a replay, then press Play.</strong></p>
+      <p class="dim">It plays here in Dolphin. Mark a start and an end, then render that range to a video.</p>
+    </div>
+    <div id="stageCover" hidden>
+      <div class="spinner"></div>
+      <p id="stageCoverText">Loading…</p>
+    </div>
+  </div>
+
+  <div class="transport" id="transport" style="position:relative">
+    <button id="tPlay" class="primary" disabled title="Play / pause">▶</button>
+    <span id="tTime" class="tTime">0:00</span>
+    <input id="tSeek" type="range" min="0" max="1000" value="0" step="1" disabled
+           title="Jump to a point in the replay">
+    <span id="tTotal" class="tTime dim">0:00</span>
+    <div class="bufBar" id="bufBar" hidden><i></i></div>
+  </div>
+
+  <div class="clipbar">
+    <button id="tMarkIn" class="ghost" disabled>Begin clip</button>
+    <button id="tMarkOut" class="ghost" disabled>End clip</button>
+    <span id="tRange" class="dim">no clip marked</span>
+    <span class="spacer"></span>
+    <button id="tClear" class="ghost" disabled>Clear</button>
+    <button id="tPreview" class="ghost" disabled title="Watch just the marked range">Preview clip</button>
+    <button id="tRender" class="primary" disabled>Render clip</button>
+    <button id="tStop" class="ghost">Stop player</button>
+  </div>
+
+  <!-- Suggestions for the replay currently open, under the manual controls. -->
+  <section id="suggestPane">
+    <div class="suggestHead">
+      <strong>Suggested clips</strong>
+      <span id="suggestCount" class="dim"></span>
+      <span class="spacer"></span>
+      <button id="suggestToggle" class="ghost" title="Show or hide suggestions">Hide</button>
+    </div>
+    <ul id="suggestList"></ul>
+  </section>
+</main>
+
+<footer id="queue" hidden>
+  <div id="queueRows"></div>
+</footer>
+
+<div id="toast" hidden></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>

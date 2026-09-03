@@ -1,0 +1,21 @@
+{
+  "name": "clippi",
+  "productName": "Clippi",
+  "version": "0.1.0",
+  "description": "Turn Slippi replays into shareable Melee highlight clips.",
+  "type": "module",
+  "main": "serve.mjs",
+  "scripts": {
+    "start": "node serve.mjs",
+    "shell": "electron shell/main.cjs"
+  },
+  "author": "Attune Games",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@slippi/slippi-js": "^9.1.3"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "koffi": "^3.2.0"
+  }
+}
