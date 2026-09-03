@@ -30,6 +30,37 @@
 </div>
 
 <section id="tab-replays" class="tabpane on">
+  <aside id="replayFilters">
+    <div class="paneHead">
+      <strong>Filters</strong>
+      <span class="spacer"></span>
+      <button id="repReset" class="ghost">Reset</button>
+    </div>
+    <div class="filterScroll">
+      <div class="fGroup">
+        <h4>When</h4>
+        <div class="segmented" id="repGrain">
+          <button class="seg on" data-grain="day">Day</button>
+          <button class="seg" data-grain="month">Month</button>
+          <button class="seg" data-grain="year">Year</button>
+        </div>
+        <div id="repWhen"></div>
+      </div>
+      <div class="fGroup">
+        <h4>Your character</h4>
+        <div id="repMine"></div>
+      </div>
+      <div class="fGroup">
+        <h4>Opponent's character</h4>
+        <div id="repTheirs"></div>
+      </div>
+      <div class="fGroup">
+        <h4>Stage</h4>
+        <div id="repStage"></div>
+      </div>
+    </div>
+  </aside>
+
   <aside id="replayPane">
     <div class="paneHead">
       <input id="search" type="search" placeholder="Search character, code, stage…" autocomplete="off">
@@ -77,14 +108,22 @@
 
       <div class="fGroup">
         <h4>Character doing it</h4>
-        <select id="fByChar"><option value="">Any character</option></select>
+        <div id="fByChar"></div>
+      </div>
+
+      <div class="fGroup">
         <h4>Character it happened to</h4>
-        <select id="fOnChar"><option value="">Any character</option></select>
+        <div id="fOnChar"></div>
+      </div>
+
+      <div class="fGroup">
+        <h4>Stage</h4>
+        <div id="fStage"></div>
       </div>
 
       <div class="fGroup">
         <h4>Player</h4>
-        <select id="fPlayer"><option value="">Any player</option></select>
+        <div id="fPlayer"></div>
         <p class="dim fHint">Matches whoever pulled the clip off.</p>
       </div>
 

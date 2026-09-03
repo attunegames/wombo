@@ -9,6 +9,8 @@
 // than duplicated, so anything that works on a replay works here too - marking,
 // previewing, rendering, seeking.
 
+import { checkList, tally } from "./filters.js";
+
 const $ = (sel) => document.querySelector(sel);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -236,12 +238,11 @@ export function mountAutoTab({ api, mmss, when, onPick }) {
       if (!has) return false;
     }
 
-    const byChar = $("#fByChar").value;
-    if (byChar && c.byChar !== byChar) return false;
-    const onChar = $("#fOnChar").value;
-    if (onChar && c.onChar !== onChar) return false;
-    const p = $("#fPlayer").value;
-    if (p && c.byName !== p) return false;
+    // Ticking nothing means "allow all", so an untouched list never excludes.
+    if (!lists.byChar.empty() && !lists.byChar.has(c.byChar)) return false;
+    if (!lists.onChar.empty() && !lists.onChar.has(c.onChar)) return false;
+    if (!lists.stage.empty() && !lists.stage.has(c.stage)) return false;
+    if (!lists.player.empty() && !lists.player.has(c.byName)) return false;
     if (c.damage < Number($("#fDamage").value)) return false;
     return true;
   }
@@ -280,27 +281,19 @@ export function mountAutoTab({ api, mmss, when, onPick }) {
     }
   }
 
-  function fillChoices() {
-    const byChars = new Set();
-    const onChars = new Set();
-    const players = new Set();
-    for (const c of all) {
-      if (c.byChar) byChars.add(c.byChar);
-      if (c.onChar) onChars.add(c.onChar);
-      if (c.byName) players.add(c.byName);
-    }
-    fillSelect($("#fByChar"), byChars, "Any character");
-    fillSelect($("#fOnChar"), onChars, "Any character");
-    fillSelect($("#fPlayer"), players, "Any player");
-  }
+  const lists = {
+    byChar: checkList($("#fByChar"), { placeholder: "Find a character…", onChange: render }),
+    onChar: checkList($("#fOnChar"), { placeholder: "Find a character…", onChange: render }),
+    stage: checkList($("#fStage"), { placeholder: "Find a stage…", onChange: render }),
+    player: checkList($("#fPlayer"), { placeholder: "Find a player…", onChange: render }),
+  };
 
-  function fillSelect(sel, values, anyLabel) {
-    const keep = sel.value;
-    sel.replaceChildren();
-    sel.append(new Option(anyLabel, ""));
-    for (const v of [...values].sort()) sel.append(new Option(v, v));
-    sel.value = [...values].includes(keep) ? keep : "";
-    sel.onchange = render;
+  /** Options come from what the scan actually turned up, not a fixed roster. */
+  function fillChoices() {
+    lists.byChar.setItems(tally(all, (c) => c.byChar));
+    lists.onChar.setItems(tally(all, (c) => c.onChar));
+    lists.stage.setItems(tally(all, (c) => c.stage));
+    lists.player.setItems(tally(all, (c) => c.byName));
   }
 
   async function poll() {
@@ -354,9 +347,7 @@ export function mountAutoTab({ api, mmss, when, onPick }) {
   $("#autoReset").onclick = () => {
     tagBox.querySelectorAll("input").forEach((i) => { i.checked = false; });
     document.querySelector("input[name=autoWho][value=all]").checked = true;
-    $("#fByChar").value = "";
-    $("#fOnChar").value = "";
-    $("#fPlayer").value = "";
+    for (const l of Object.values(lists)) l.clear();
     $("#fDamage").value = 0;
     const hadDays = days.length;
     picks.clear();

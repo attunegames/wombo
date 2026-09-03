@@ -11,6 +11,7 @@
 //    has to actually hide the window, not draw over it.
 
 import { mountSuggestions, mountAutoTab } from "./auto.js";
+import { checkList, tally, grainKey, grainLabel, dayOf } from "./filters.js";
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => {
@@ -47,7 +48,7 @@ function toast(msg, bad = false) {
 const SHELL = typeof window.womboShell !== "undefined";
 const FPS = 60;
 
-const state = { replays: [], filtered: [], current: null };
+const state = { replays: [], filtered: [], current: null, perspective: null };
 
 const mmss = (sec) => {
   const s = Math.max(0, Math.round(sec));
@@ -91,15 +92,86 @@ function renderReplays() {
  */
 const playable = (r) => (r.durationSec ?? 0) > 1 && (r.lastFrame ?? 0) > 60;
 
+// --- replay filters --------------------------------------------------------
+// Which side is "you" comes from the connect code that appears in most of your
+// replays. Without one there is no way to tell your character from theirs, so
+// both lists fall back to matching either player rather than guessing.
+let repGrain = "day";
+let repFilters = null;
+
+const mineIn = (r) => (state.perspective
+  ? r.players.find((p) => p.code?.toUpperCase() === state.perspective.toUpperCase())
+  : null);
+
+function charsOf(r) {
+  const me = mineIn(r);
+  const them = me ? r.players.find((p) => p !== me) : null;
+  return {
+    mine: me ? [me.characterShort] : r.players.map((p) => p.characterShort),
+    theirs: them ? [them.characterShort] : r.players.map((p) => p.characterShort),
+  };
+}
+
+function passesFilters(r) {
+  if (!repFilters) return true;
+  const { when, mine, theirs, stage } = repFilters;
+  if (!when.empty() && !when.has(grainKey(dayOf(r.startAt), repGrain))) return false;
+  const c = charsOf(r);
+  if (!mine.empty() && !c.mine.some((x) => mine.has(x))) return false;
+  if (!theirs.empty() && !c.theirs.some((x) => theirs.has(x))) return false;
+  if (!stage.empty() && !stage.has(r.stage)) return false;
+  return true;
+}
+
 function applySearch() {
   const q = $("#search").value.trim().toLowerCase();
-  const real = state.replays.filter(playable);
-  state.hidden = state.replays.length - real.length;
+  const real = state.replays.filter(playable).filter(passesFilters);
+  state.hidden = state.replays.length - state.replays.filter(playable).length;
   state.filtered = !q ? real : real.filter((r) =>
     (r.matchup + " " + r.stage + " " +
       r.players.map((p) => `${p.name} ${p.code} ${p.character}`).join(" ")
     ).toLowerCase().includes(q));
   renderReplays();
+}
+
+/** Build the filter lists from whatever the replay folder actually contains. */
+function buildReplayFilters() {
+  if (!repFilters) {
+    repFilters = {
+      when: checkList($("#repWhen"), { placeholder: "Find a date…", onChange: applySearch }),
+      mine: checkList($("#repMine"), { placeholder: "Find a character…", onChange: applySearch }),
+      theirs: checkList($("#repTheirs"), { placeholder: "Find a character…", onChange: applySearch }),
+      stage: checkList($("#repStage"), { placeholder: "Find a stage…", onChange: applySearch }),
+    };
+    for (const b of document.querySelectorAll("#repGrain .seg")) {
+      b.onclick = () => {
+        if (b.dataset.grain === repGrain) return;
+        repGrain = b.dataset.grain;
+        document.querySelectorAll("#repGrain .seg")
+          .forEach((x) => x.classList.toggle("on", x === b));
+        // A ticked day means nothing once the list is showing months.
+        repFilters.when.clear();
+        refreshReplayFilters();
+        applySearch();
+      };
+    }
+    $("#repReset").onclick = () => {
+      for (const f of Object.values(repFilters)) f.clear();
+      applySearch();
+    };
+  }
+  refreshReplayFilters();
+}
+
+function refreshReplayFilters() {
+  const real = state.replays.filter(playable);
+  repFilters.when.setItems(
+    tally(real, (r) => grainKey(dayOf(r.startAt), repGrain))
+      .sort((a, b) => String(b.value).localeCompare(String(a.value)))
+      .map((i) => ({ ...i, label: grainLabel(i.value) })));
+  repFilters.mine.setItems(tally(real, (r) => charsOf(r).mine));
+  repFilters.theirs.setItems(tally(real, (r) => charsOf(r).theirs));
+  repFilters.stage.setItems(tally(real, (r) => r.stage));
 }
 
 function selectReplay(r) {
@@ -757,6 +829,9 @@ async function load(force = false) {
   $("#replayCount").textContent = "scanning…";
   const data = await api(`/api/replays${force ? "?force=1" : ""}`);
   state.replays = data.replays;
+  // Which connect code is yours, so "your character" can mean anything.
+  state.perspective = data.perspective ?? null;
+  buildReplayFilters();
   applySearch();
   loadLibrary();
   updateChip();

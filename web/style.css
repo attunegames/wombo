@@ -244,3 +244,12 @@ footer#queue{
   background:rgba(0,0,0,.35); padding:2px 7px; border-radius:5px;
   font-family:ui-monospace,Consolas,monospace; user-select:all;
 }
+
+/* --- checkbox filter lists ------------------------------------------------ */
+#replayFilters{
+  width:220px; flex:0 0 auto; border-right:1px solid var(--line);
+  display:flex; flex-direction:column; min-height:0; background:var(--panel);
+}
+.filterSearch{width:100%; margin:0 0 6px; padding:5px 9px; font-size:12px}
+.checkList{max-height:190px; overflow:auto; margin:0 -2px}
+.checkList .fRow{padding:2px 2px}
