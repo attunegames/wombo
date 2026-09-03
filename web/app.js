@@ -192,7 +192,7 @@ const player = {
   },
 
   /** Start (or restart) playback at a frame. */
-  async playFrom(frame, { endFrame } = {}) {
+  async playFrom(frame, { endFrame, retried = false } = {}) {
     if (!this.replay) return;
     // Un-freeze first. Seeking while paused leaves the emulation threads
     // suspended, so Dolphin never acts on the new position - the clock runs on
@@ -235,13 +235,23 @@ const player = {
     const started = await whenAudible({ timeout: booting ? 60000 : 20000, base: audioBase,
       from: Math.max(-123, Math.round(frame)) });
     if (!started.ok) {
-      // Only reached when a boot never produced a playing replay - an empty or
-      // aborted file. A seek that stays quiet is assumed fine and falls through.
+      // Silence usually means the RUNNING Dolphin has stopped consuming the
+      // comm file - once its queue is exhausted it can ignore new entries
+      // entirely, so the write goes nowhere and nothing ever plays again. That
+      // is not a bad replay, and telling the user their file is corrupt sends
+      // them looking in the wrong place. Restart the player and try once more.
+      if (!retried) {
+        cover("Restarting the player…");
+        await post("/api/player/stop");
+        if (SHELL) await window.clippiShell.dolphinDetached();
+        return this.playFrom(frame, { endFrame, retried: true });
+      }
       await uncover();
       this.seeking = false;
       this.playing = false;
       $("#tPlay").textContent = "▶";
-      return toast("That replay never started playing — it may be empty or corrupt.", true);
+      return toast("Could not get the player going, even after restarting it. "
+        + "If it keeps happening, close Clippi and reopen it.", true);
     }
     this.originFrame = Math.max(0, Math.round(frame));
     this.originAt = Date.now();
