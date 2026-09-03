@@ -28,6 +28,25 @@ const BOOT_TIMEOUT_MS = 90_000;
 // Melee at 60fps is expensive to encode - the stage backgrounds move constantly
 // - so these are tuned for a ~10s clip that still fits comfortably in a chat
 // message. `good` is the default: 1.5x native resolution, ~10MB for 11 seconds.
+/**
+ * Is ffmpeg reachable?
+ *
+ * Every render shells out to it, and without it the failure is a bare ENOENT
+ * from deep inside a job - which tells a new user nothing. Checked once at
+ * startup so the UI can say what is wrong and how to fix it.
+ */
+let ffmpegOk = null;
+export async function checkFfmpeg() {
+  if (ffmpegOk !== null) return ffmpegOk;
+  try {
+    await execFileAsync("ffmpeg", ["-version"]);
+    ffmpegOk = true;
+  } catch {
+    ffmpegOk = false;
+  }
+  return ffmpegOk;
+}
+
 export const QUALITY = {
   high: { label: "1080p archive", height: 1080, crf: 20, preset: "medium", internalRes: 3, bitrateKbps: 25000 },
   good: { label: "720p share", height: 720, crf: 21, preset: "medium", internalRes: 2, bitrateKbps: 15000 },

@@ -11,22 +11,32 @@ To get a clip into Discord, press **Copy for Discord** and paste it into any
 channel with Ctrl+V. Discord uploads it itself, so there is no account and
 nothing to configure. (Hosted links are parked — see *Sharing* below.)
 
-**Double-click `clippi-app.bat`** for the single-window app: your clip list and
-Melee playing side by side in one window.
+## Get it
 
-**Or `clippi.bat`** for the browser version — same thing minus the embedded
-player, with Dolphin as its own separate window. Keep its console window open
-while you use it. If Clippi is already running it just opens the page rather
-than failing on the port.
+Download the latest release, unzip it anywhere, and run **`Clippi.exe`**.
+There is no installer and nothing is written outside your user folder.
 
-Or from a terminal, in the folder you cloned into:
+You also need:
+
+- **Slippi Launcher**, with the playback build present (watch one replay
+  through it once) and your Melee ISO configured. Clippi reads both from
+  Slippi's own settings.
+- **ffmpeg** on your PATH — this is what actually encodes the video:
+
+  ```
+  winget install Gyan.FFmpeg
+  ```
+
+  Clippi tells you in the window if it cannot find it.
+
+## Running from source
 
 ```bash
 npm install
-node serve.mjs
+npm run shell     # the single-window app
+npm start         # or just the server, then open http://localhost:5730
+npm run package   # build dist/Clippi-win32-x64/
 ```
-
-Then open <http://localhost:5730>.
 
 ## How it works
 

@@ -22,6 +22,13 @@
   <button id="rescan" class="ghost" title="Re-read the replay folder">Rescan</button>
 </header>
 
+<div id="needFfmpeg" class="warnBar" hidden>
+  <strong>ffmpeg is not installed.</strong>
+  Clippi can play and mark clips, but it cannot render video without it.
+  Install it, then restart Clippi:
+  <code>winget install Gyan.FFmpeg</code>
+</div>
+
 <section id="tab-replays" class="tabpane on">
   <aside id="replayPane">
     <div class="paneHead">

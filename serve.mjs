@@ -14,7 +14,7 @@ import { motionFor } from "./src/motion.mjs";
 import * as player from "./src/player.mjs";
 import * as share from "./src/share.mjs";
 import * as discord from "./src/discord.mjs";
-import { QUALITY, previewClips, renderClip, renderDrafts, killDolphin } from "./src/render.mjs";
+import { QUALITY, previewClips, renderClip, renderDrafts, killDolphin, checkFfmpeg } from "./src/render.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -197,6 +197,9 @@ const routes = {
     const { discordWebhook, catboxUserhash, ...safe } = cfg;
     return {
       config: safe,
+      // Renders shell out to ffmpeg; without it every job dies with a bare
+      // ENOENT, so the UI is told up front and can say how to fix it.
+      ffmpegOk: await checkFfmpeg(),
       discordWebhookSet: !!discordWebhook,
       catboxUserhashSet: !!catboxUserhash,
       hosts: share.hostList(),

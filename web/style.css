@@ -234,3 +234,13 @@ footer#queue{
   font-size:11px; letter-spacing:.04em; color:var(--warn);
   border:1px solid var(--line); border-radius:99px; padding:2px 8px;
 }
+
+/* Shown only when ffmpeg is missing - renders cannot work without it. */
+.warnBar{
+  flex:0 0 auto; padding:9px 16px; background:#2a2113; color:#ffe0a3;
+  border-bottom:1px solid var(--warn); font-size:13px;
+}
+.warnBar code{
+  background:rgba(0,0,0,.35); padding:2px 7px; border-radius:5px;
+  font-family:ui-monospace,Consolas,monospace; user-select:all;
+}

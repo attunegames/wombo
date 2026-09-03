@@ -736,6 +736,9 @@ async function load(force = false) {
     return o;
   }));
   $("#quality").value = st.config.quality;
+  // Nothing renders without ffmpeg, so say so plainly rather than letting the
+  // first render fail with an error nobody can act on.
+  $("#needFfmpeg").hidden = st.ffmpegOk !== false;
 
   $("#replayCount").textContent = "scanning…";
   const data = await api(`/api/replays${force ? "?force=1" : ""}`);
