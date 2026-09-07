@@ -35,6 +35,13 @@ const MIME = {
 const jobs = [];
 let working = false;
 
+// Rendering and the live player cannot coexist: rendering runs taskkill on
+// "Slippi Dolphin.exe" between passes, which kills the player's window too, and
+// both share one sandbox and one audio dump. So the player is refused while a
+// render is in flight rather than the two fighting over the same process - the
+// symptom of which was a clip stuck on "Cueing the clip..." forever.
+const renderBusy = () => jobs.some((j) => j.status === "queued" || j.status === "running");
+
 function enqueue(job) {
   const entry = {
     id: `job${Date.now()}${jobs.length}`,
@@ -200,6 +207,7 @@ const routes = {
       // Renders shell out to ffmpeg; without it every job dies with a bare
       // ENOENT, so the UI is told up front and can say how to fix it.
       ffmpegOk: await checkFfmpeg(),
+      rendering: renderBusy(),
       discordWebhookSet: !!discordWebhook,
       catboxUserhashSet: !!catboxUserhash,
       hosts: share.hostList(),
@@ -246,6 +254,7 @@ const routes = {
   },
 
   "GET /api/jobs": async () => ({
+    rendering: renderBusy(),
     jobs: jobs.slice(-40).map(({ replay, clip, clips, ...j }) => ({
       ...j,
       title: j.kind === "draft"
@@ -317,6 +326,9 @@ const routes = {
   "GET /api/player": async () => player.status(),
 
   "POST /api/player/play": async (req) => {
+    if (renderBusy()) {
+      throw new Error("Rendering right now. The player shares one Dolphin with the renderer, so it comes back when the render finishes.");
+    }
     const body = await readBody(req);
     const clip = { ...body.clip, replay: body.clip?.replay ?? body.replay };
     // A render and the player both want Dolphin; the player yields.

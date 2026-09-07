@@ -670,9 +670,32 @@ async function loadLibrary({ force = false } = {}) {
 
 const seenDone = new Set();
 
+/** Grey the transport out while a render owns Dolphin, and say why. */
+let renderingNow = false;
+function setRendering(on) {
+  if (on === renderingNow) return;
+  renderingNow = on;
+  $("#renderBusy").hidden = !on;
+  for (const id of ["#tPlay", "#tPreview", "#tSeek"]) {
+    const b = $(id);
+    if (!b) continue;
+    if (on) {
+      b.dataset.wasDisabled = b.disabled ? "1" : "";
+      b.disabled = true;
+      b.title = "Rendering - the player shares one Dolphin with the renderer";
+    } else {
+      b.disabled = b.dataset.wasDisabled === "1";
+      b.title = "";
+    }
+  }
+}
+
 async function pollJobs() {
   try {
-    const { jobs } = await api("/api/jobs");
+    const { jobs, rendering } = await api("/api/jobs");
+    // The renderer takes the one Dolphin with it, so say the player is out of
+    // action while it runs instead of letting a click hang on a cover.
+    setRendering(!!rendering);
     const active = jobs.filter((j) => j.status === "queued" || j.status === "running" || j.status === "error");
     const foot = $("#queue");
     foot.hidden = active.length === 0;

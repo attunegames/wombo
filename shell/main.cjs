@@ -220,7 +220,20 @@ ipcMain.handle("dolphin:attach", attachDolphin);
  */
 function watchForDolphin() {
   setInterval(async () => {
-    if (dolphinHwnd || !win) return;
+    if (!win) return;
+    // Drop a handle whose window has gone. Rendering runs taskkill on Dolphin,
+    // which kills the player's window without telling us - and while a stale
+    // handle is held this watcher skips, so the NEW Dolphin is never adopted,
+    // never revealed, and the clip sits on "Cueing the clip..." forever.
+    if (dolphinHwnd) {
+      const w32 = await loadWin32();
+      if (w32.isWindow(dolphinHwnd)) return;
+      dolphinHwnd = null;
+      dolphinPid = null;
+      seekBar = null;
+      playerRevealed = false;
+      console.log("[shell] dolphin window went away; will re-adopt");
+    }
     try {
       // Native lookup, not the server route: that one shells out to PowerShell
       // and costs ~half a second, which is long enough for Dolphin's window to
@@ -571,6 +584,60 @@ ipcMain.handle("shell:isShell", async () => true);
  * drag the seek bar. Only meaningful inside Electron - a browser tab has no
  * womboShell, so it skips every path this is trying to exercise.
  */
+/**
+ * Reproduce the render collision: play a clip, render one, then play again
+ * once the render has taken Dolphin down with it.
+ */
+async function renderProbe() {
+  const js = (code) => win.webContents.executeJavaScript(code, true);
+  const log = (...a) => console.log("[renderprobe]", ...a);
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  try {
+    await wait(4000);
+    await js(`document.querySelectorAll('#replayList li')[0].click()`);
+    await wait(1500);
+    await js(`document.querySelector('#tPlay').click()`);
+    for (let i = 0; i < 45; i++) {
+      await wait(1000);
+      if (await js(`document.querySelector('#stageCover').hidden`)) break;
+    }
+    log("playing at", await js(`document.querySelector('#tTime').textContent`));
+
+    log("marking a short range and rendering it...");
+    await js(`(() => { window.__p = null; })()`);
+    await js(`document.querySelector('#tMarkIn').click()`);
+    await wait(2500);
+    await js(`document.querySelector('#tMarkOut').click()`);
+    await js(`document.querySelector('#tRender').click()`);
+
+    for (let i = 0; i < 180; i++) {
+      await wait(1000);
+      const busy = await js(`fetch('/api/jobs').then(r => r.json()).then(j => j.rendering)`);
+      if (!busy && i > 3) { log("render finished after", i + "s"); break; }
+    }
+
+    log("now playing a different replay, as reported...");
+    await js(`document.querySelectorAll('#replayList li')[1].click()`);
+    await wait(1200);
+    await js(`document.querySelector('#tPlay').click()`);
+    for (let i = 0; i < 60; i++) {
+      await wait(1000);
+      const covered = await js(`!document.querySelector('#stageCover').hidden`);
+      // Only a FAILURE toast counts. The render's own "Clip rendered" success
+      // notice was being read as a failure and ending the probe early.
+      const toast = await js(`(() => { const t = document.querySelector('#toast');
+        return (!t.hidden && t.classList.contains('bad')) ? t.textContent : null; })()`);
+      if (toast) { log("FAILED after", i + "s:", toast); return; }
+      if (!covered && i > 2) {
+        log("RECOVERED after", i + "s - playing at",
+          await js(`document.querySelector('#tTime').textContent`));
+        return;
+      }
+    }
+    log("STILL STUCK on the cover after 60s - the reported freeze");
+  } catch (err) { log("threw:", err.message); }
+}
+
 async function seekProbe() {
   const js = (code) => win.webContents.executeJavaScript(code, true);
   const log = (...a) => console.log('[seekprobe]', ...a);
@@ -900,7 +967,9 @@ app.whenReady().then(async () => {
   startMuter();
   watchForDolphin();
   watchPanelFit();
-  if (process.env.WOMBO_SEEKPROBE) {
+  if (process.env.WOMBO_RENDERPROBE) {
+    win.webContents.once("did-finish-load", () => { renderProbe(); });
+  } else if (process.env.WOMBO_SEEKPROBE) {
     win.webContents.once("did-finish-load", () => { seekProbe(); });
   } else if (process.env.WOMBO_SELFTEST) {
     win.webContents.once("did-finish-load", () => {

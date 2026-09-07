@@ -348,6 +348,13 @@ export function fitPanel(hwnd, { x, y, w, h }, pad = 0) {
   return true;
 }
 
+const IsWindow = user32.func("bool __stdcall IsWindow(HWND h)");
+
+/** Does this handle still refer to a live window? */
+export function isWindow(hwnd) {
+  try { return !!IsWindow(asHandle(hwnd)); } catch { return false; }
+}
+
 /** Is the window currently on screen? */
 export function isVisible(hwnd) {
   return !!IsWindowVisible(asHandle(hwnd));
