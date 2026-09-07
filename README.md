@@ -21,13 +21,8 @@ You also need:
 - **Slippi Launcher**, with the playback build present (watch one replay
   through it once) and your Melee ISO configured. Wombo reads both from
   Slippi's own settings.
-- **ffmpeg** on your PATH — this is what actually encodes the video:
-
-  ```
-  winget install Gyan.FFmpeg
-  ```
-
-  Wombo tells you in the window if it cannot find it.
+ffmpeg is **included** — nothing to install. Wombo prefers its own copy over
+any ffmpeg on your PATH, so a broken or ancient one cannot break rendering.
 
 ## Running from source
 
@@ -354,3 +349,14 @@ Everything lives in `src/detect.mjs`. The two knobs you will actually want:
   the neutral-win bonus never applies to them.
 - The first scan of a large replay folder parses every file; after that it is
   cached against size+mtime in `%APPDATA%\Wombo\index.json`.
+
+## Bundled ffmpeg
+
+Releases include `ffmpeg.exe` from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)
+(the "essentials" build), which is licensed **GPL v3** — the same licence as
+Wombo. Its licence text ships alongside it as `vendor/FFMPEG-LICENSE.txt`, and
+the corresponding source is available from
+<https://github.com/GyanD/codexffmpeg>.
+
+The binary is not in this repository; `npm run package` fetches it into
+`vendor/` on the way to building a release.

@@ -1,14 +1,16 @@
 {
   "name": "wombo",
   "productName": "Wombo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Turn Slippi replays into shareable Melee highlight clips.",
   "type": "module",
   "main": "shell/main.cjs",
   "scripts": {
     "start": "node serve.mjs",
     "shell": "electron shell/main.cjs",
-    "package": "electron-packager . Wombo --platform=win32 --arch=x64 --out=dist --overwrite --app-copyright=\"Attune Games\" --ignore=\"^/dist\" --ignore=\"^/tools\" --ignore=\"^/\\.git\" --ignore=\"\\.log$\""
+    "package": "electron-packager . Wombo --platform=win32 --arch=x64 --out=dist --overwrite --app-copyright=\"Attune Games\" --ignore=\"^/dist\" --ignore=\"^/tools\" --ignore=\"^/\\.git\" --ignore=\"\\.log$\"",
+    "fetch-ffmpeg": "node tools/fetch-ffmpeg.mjs",
+    "prepackage": "node tools/fetch-ffmpeg.mjs"
   },
   "author": "Attune Games",
   "license": "GPL-3.0-or-later",

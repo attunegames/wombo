@@ -12,3 +12,6 @@ server.log
 # Anything a run drops here
 /clips/
 /out/
+
+# ffmpeg is fetched at package time, not committed (~98MB)
+vendor/
