@@ -198,6 +198,9 @@ const player = {
   seeking: false,
   previewing: false,
   endTimer: null,
+  // Bumped by every cue. An older cue that comes back late checks it and gives
+  // up rather than dragging the UI back to the clip you already moved on from.
+  playSeq: 0,
 
   reset(replay) {
     this.replay = replay;
@@ -205,6 +208,11 @@ const player = {
     // played and clipped; we just cannot show a total or offer a seek bar.
     this.lastFrame = replay?.lastFrame ?? 0;
     this.unknownLength = !this.lastFrame;
+    // A finished preview leaves the emulator FROZEN. Switching replays used to
+    // only clear the flag, so nothing ever thawed it - and the next clip cued
+    // against a Dolphin that could not read its queue, forever.
+    if (this.paused && SHELL) window.womboShell.setPaused(false);
+    this.playSeq += 1;              // supersede any cue still in flight
     this.playing = false;
     this.paused = false;
     this.markIn = this.markOut = null;
@@ -266,10 +274,17 @@ const player = {
   /** Start (or restart) playback at a frame. */
   async playFrom(frame, { endFrame, retried = false } = {}) {
     if (!this.replay) return;
-    // Un-freeze first. Seeking while paused leaves the emulation threads
-    // suspended, so Dolphin never acts on the new position - the clock runs on
-    // and it looks like it is playing with the sound missing.
-    if (this.paused && SHELL) {
+    const seq = (this.playSeq += 1);
+    const stale = () => seq !== this.playSeq;
+    // Un-freeze first, unconditionally. Seeking while paused leaves the
+    // emulation threads suspended, so Dolphin never acts on the new position -
+    // the clock runs on and it looks like it is playing with the sound missing.
+    // Not gated on this.paused any more: the flag tracks what the USER pressed,
+    // and the emulator can be frozen without it (a preview that ran to the end,
+    // then a replay switch that reset the flag). Asking to resume something
+    // already running is harmless; assuming it is running when it is not cost
+    // an unrecoverable cue.
+    if (SHELL) {
       await window.womboShell.setPaused(false);
       this.paused = false;
     }
@@ -306,6 +321,7 @@ const player = {
     if (SHELL) await window.womboShell.setPaused(false);   // let it seek and play
     const started = await whenAudible({ timeout: booting ? 60000 : 20000, base: audioBase,
       from: Math.max(-123, Math.round(frame)) });
+    if (stale()) return;            // a newer clip was clicked while this cued
     if (!started.ok) {
       // Silence usually means the RUNNING Dolphin has stopped consuming the
       // comm file - once its queue is exhausted it can ignore new entries
@@ -772,7 +788,9 @@ $("#tStop").onclick = async () => {
   unbuffer();
   player.previewing = false;
   await post("/api/player/stop");
+  player.playSeq += 1;            // any cue still in flight is now meaningless
   player.playing = false;
+  player.paused = false;
   if (SHELL) await window.womboShell.dolphinDetached();
   $("#stageCover").hidden = true;
   $("#stageIdle").hidden = false;

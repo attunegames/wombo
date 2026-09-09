@@ -77,7 +77,22 @@ export function setPaused(hwnd, paused) {
       if (entry.th32OwnerProcessID === pid && entry.th32ThreadID !== guiThread) {
         const t = OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID);
         if (t) {
-          if (paused) SuspendThread(t); else ResumeThread(t);
+          if (paused) {
+            SuspendThread(t);
+          } else {
+            // Resume ALL the way down. SuspendThread keeps a per-thread COUNT,
+            // so one ResumeThread only decrements it: freeze the emulator to
+            // end a preview, then freeze it again to cue the next clip, and the
+            // matching single resume leaves it at one - still frozen, with
+            // nothing left that would ever thaw it. And a Dolphin stuck like
+            // that hangs Wombo too, because its GUI thread ends up waiting on a
+            // frozen one and every window call we make into it blocks forever.
+            // That was the clip that sat on "Cueing the clip..." indefinitely.
+            for (let i = 0; i < 32; i += 1) {
+              const prev = ResumeThread(t);
+              if (prev <= 1 || prev === 0xffffffff) break;   // 0/1 = running now
+            }
+          }
           CloseHandle(t);
           touched++;
         }

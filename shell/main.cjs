@@ -522,10 +522,14 @@ async function fetchPid() {
 let dolphinPaused = false;
 
 ipcMain.handle("dolphin:paused", async (_e, paused) => {
-  if (!dolphinHwnd) return { ok: false };
+  if (!dolphinHwnd) { dolphinPaused = false; return { ok: false }; }
+  const want = !!paused;
+  // Freezing an already-frozen Dolphin is not a no-op - suspends stack - so ask
+  // for it once. A resume always goes through, and unwinds however deep it got.
+  if (want && dolphinPaused) return { ok: true };
   const w32 = await loadWin32();
-  const ok = w32.setPaused(dolphinHwnd, !!paused);
-  if (ok) dolphinPaused = !!paused;
+  const ok = w32.setPaused(dolphinHwnd, want);
+  if (ok) dolphinPaused = want;
   return { ok };
 });
 
