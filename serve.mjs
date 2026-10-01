@@ -21,6 +21,9 @@ const execFileAsync = promisify(execFile);
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.join(HERE, "web");
 const PORT = Number(process.env.WOMBO_PORT ?? 5730);
+// Which build is answering. The shell checks this before it trusts a server
+// it did not start - see the stale-instance guard in shell/main.cjs.
+const VERSION = JSON.parse(fs.readFileSync(path.join(HERE, "package.json"), "utf8")).version;
 
 const MIME = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -203,6 +206,7 @@ const routes = {
     // one is set, so it can say so.
     const { discordWebhook, catboxUserhash, ...safe } = cfg;
     return {
+      version: VERSION,
       config: safe,
       // Renders shell out to ffmpeg; without it every job dies with a bare
       // ENOENT, so the UI is told up front and can say how to fix it.

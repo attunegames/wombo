@@ -7,8 +7,8 @@
 // The server is started as a child process rather than imported, so a crash in
 // a render cannot take the window down with it.
 
-const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
-const { spawn } = require("node:child_process");
+const { app, BrowserWindow, ipcMain, screen, shell, dialog } = require("electron");
+const { spawn, execFileSync } = require("node:child_process");
 const path = require("node:path");
 
 const PORT = Number(process.env.WOMBO_PORT ?? 5730);
@@ -46,6 +46,10 @@ async function loadWin32() {
 
 // --- the local server ------------------------------------------------------
 
+// Set when OUR server could not take the port because something else has it.
+// Everything then on 5730 belongs to someone else - see guardStaleInstance.
+let portTaken = false;
+
 function startServer() {
   return new Promise((resolve) => {
     server = spawn(process.execPath, [path.join(ROOT, "serve.mjs")], {
@@ -60,9 +64,68 @@ function startServer() {
       if (s.includes("http://localhost")) resolve();
     };
     server.stdout.on("data", watch);
-    server.stderr.on("data", (b) => process.stderr.write(String(b)));
+    server.stderr.on("data", (b) => {
+      const s = String(b);
+      process.stderr.write(s);
+      // Only ever went to stderr, which nobody sees in a packaged build - so a
+      // launch that lost the port looked completely normal right up until the
+      // window showed another build's page.
+      if (s.includes("EADDRINUSE")) { portTaken = true; resolve(); }
+    });
     setTimeout(resolve, 6000);   // resolve anyway; the page retries
   });
+}
+
+/**
+ * Refuse to wear another build's clothes.
+ *
+ * If something already owns the port, this window would load ITS page: you get
+ * the new app's shell rendering the old app's code, which looks exactly like an
+ * update that silently did not apply. Builds before 0.3.3 leave their server
+ * running after you close them, so this will keep happening to anyone updating
+ * from one - the guard is what makes it recoverable without Task Manager.
+ */
+async function guardStaleInstance() {
+  if (!portTaken) return true;
+  const mine = app.getVersion();
+  let theirs = "an older version";
+  try {
+    const st = await fetch(`http://127.0.0.1:${PORT}/api/state`).then((r) => r.json());
+    if (st?.version) theirs = `version ${st.version}`;
+  } catch { /* it is there, it just will not say who */ }
+
+  const { response } = await dialog.showMessageBox({
+    type: "warning",
+    title: "Wombo is already running",
+    message: `Another Wombo (${theirs}) is already running and using port ${PORT}.`,
+    detail: "Closing a Wombo before this version could leave its server running "
+      + "in the background, even with no window on screen. Shutting it down lets "
+      + `this one (version ${mine}) start properly.`,
+    buttons: ["Shut it down and continue", "Quit"],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (response !== 0) { app.quit(); return false; }
+
+  // Kill whatever holds the port, then take it. Named by PORT rather than by
+  // image name so this cannot take out an unrelated Electron app.
+  for (const pid of pidsOnPort(PORT)) killTree(pid);
+  portTaken = false;
+  await new Promise((r) => setTimeout(r, 700));
+  await startServer();
+  return !portTaken;
+}
+
+/** Whoever is LISTENING on a port, straight from netstat. */
+function pidsOnPort(port) {
+  try {
+    const out = execFileSync("netstat", ["-ano"], { encoding: "utf8", windowsHide: true });
+    return [...new Set(out.split(/\r?\n/)
+      .filter((l) => l.includes(`:${port} `) && l.includes("LISTENING"))
+      .map((l) => Number(l.trim().split(/\s+/).pop()))
+      .filter((n) => Number.isFinite(n) && n > 0))];
+  } catch { return []; }
 }
 
 async function waitForServer(tries = 40) {
@@ -963,6 +1026,8 @@ async function selfTestOld(replay) {
 
 app.whenReady().then(async () => {
   await startServer();
+  // Another build holding the port would have us render ITS page.
+  if (!(await guardStaleInstance())) return;
   await waitForServer();
   createWindow();
   // Warm and idle before Dolphin exists - spawning it on demand cost ~400ms,
@@ -982,17 +1047,56 @@ app.whenReady().then(async () => {
   }
 });
 
-app.on("window-all-closed", () => app.quit());
+/** Kill a child AND its children: on Windows child.kill() leaves the tree. */
+function killTree(pid) {
+  if (!pid) return;
+  try {
+    execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
+      windowsHide: true, stdio: "ignore",
+    });
+  } catch { /* already gone */ }
+}
 
-app.on("before-quit", async () => {
+let shuttingDown = false;
+
+/**
+ * Shut down for real.
+ *
+ * This used to be an async handler, and ELECTRON DOES NOT AWAIT ONE: everything
+ * after the first `await` raced the process exit, and killing the server was
+ * last in the list, so it was the thing that reliably did not happen. Closing
+ * Wombo left its server alive and still holding the port - and the next launch,
+ * finding 5730 already answering, quietly loaded the OLD build's page. An
+ * update then looked like it had not applied at all.
+ *
+ * So: synchronous only, and the server first, because it owns the port.
+ */
+function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  killTree(server?.pid);
+  server = null;
   stopKeeper();
   stopMuter();
-  // Never leave Dolphin frozen: pause suspends the process, and a quit while
-  // paused would strand it suspended with no way back.
+  // Never leave Dolphin frozen: pausing suspends its threads, and quitting
+  // while paused would strand it suspended with no way back. Uses the CACHED
+  // module - loading it here would mean an await, which is the bug above.
+  try { if (dolphinHwnd && w32sync) w32sync.setPaused(dolphinHwnd, false); } catch { /* nothing to resume */ }
+  // Dolphin is not our child - the server launched it - so it outlives us
+  // unless it is named. The server is already dead by now and cannot do it.
   try {
-    if (dolphinHwnd) (await loadWin32()).setPaused(dolphinHwnd, false);
-  } catch { /* nothing to resume */ }
-  // Stop the player and the server rather than leaving orphans behind.
-  try { await fetch(`http://127.0.0.1:${PORT}/api/player/stop`, { method: "POST" }); } catch { /* gone */ }
-  if (server && !server.killed) server.kill();
+    execFileSync("taskkill", ["/F", "/IM", "Slippi Dolphin.exe"], {
+      windowsHide: true, stdio: "ignore",
+    });
+  } catch { /* not running */ }
+}
+
+app.on("window-all-closed", () => app.quit());
+app.on("before-quit", shutdown);
+
+// Backstop. A Wombo with no window that still owns the port is worse than an
+// abrupt exit, and that is exactly the state people were left in.
+app.on("will-quit", () => {
+  shutdown();
+  setTimeout(() => process.exit(0), 1500);
 });
