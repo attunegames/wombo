@@ -625,14 +625,34 @@ async function loadLibrary({ force = false } = {}) {
     body.append(el("div", "dim", `${c.durationSec}s · ${mb(c.bytes)} · ${c.quality}`));
 
     const row = el("div", "cardRow");
-    // Parked, not removed: the upload path works, but every anonymous host
-    // tested was either unreliable or short-lived, so a hosted link is not
-    // something to promise testers yet. Copy for Discord covers it today.
+    // A hosted link, for anywhere you cannot paste a file: a forum post, a DM on
+    // your phone, a reply to someone who is not in your Discord. It goes to
+    // catbox - anonymous, permanent, and a direct .mp4, which is what makes it
+    // play inline instead of arriving as a link to click.
+    //
+    // Uploading PUBLISHES the clip, so it only ever happens on this press, one
+    // clip at a time, and the button says what it is going to do.
     const shareBtn = el("button", "ghost", c.url ? "Get a new link" : "Get link");
-    shareBtn.disabled = true;
-    shareBtn.title = "Hosted links are not ready yet - use Copy for Discord";
+    shareBtn.title = c.url
+      ? "Uploads the clip again for a fresh public link"
+      : "Uploads the clip to catbox.moe and gives you a public link";
+    shareBtn.onclick = async () => {
+      const was = shareBtn.textContent;
+      shareBtn.disabled = true;
+      shareBtn.textContent = "Uploading…";
+      try {
+        // again: this press means "a DIFFERENT link", not "show me the cached one".
+        const r = await api("/api/share", { id: c.id, again: !!c.url });
+        if (r.url) await navigator.clipboard.writeText(r.url).catch(() => {});
+        toast(r.cached ? "Already shared — link copied" : "Link copied to the clipboard");
+        loadLibrary({ force: true });     // paint the link box under the card
+      } catch (err) {
+        shareBtn.disabled = false;
+        shareBtn.textContent = was;
+        toast(err.message, true);
+      }
+    };
     row.append(shareBtn);
-    row.append(el("span", "soon", "coming soon"));
 
     // Posting attaches the file to a Discord webhook message, so the clip is
     // never hosted anywhere else - no link to go stale, and Discord renders a

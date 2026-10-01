@@ -16,6 +16,8 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+import { ffmpegPath } from "./ffmpeg.mjs";
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -69,7 +71,10 @@ async function verifyUpload(url, expectedBytes, { attempts = 4, signal } = {}) {
  */
 async function nudgedCopy(file) {
   const out = path.join(os.tmpdir(), `wombo-reshare-${Date.now()}.mp4`);
-  await execFileAsync("ffmpeg", [
+  // The BUNDLED ffmpeg, not whatever is on PATH. A released build has nothing
+  // on PATH at all - that is why one ships - so the bare name failed here,
+  // while rendering, which goes through ffmpegPath(), worked fine.
+  await execFileAsync(ffmpegPath(), [
     "-v", "error", "-y", "-i", file,
     "-c", "copy",                       // no re-encode: same video, new bytes
     "-metadata", `comment=wombo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -116,27 +121,36 @@ HOSTS.catbox = {
   name: "catbox.moe",
   limitBytes: 200 * MB,
   note: "Anonymous and permanent. Anyone with the link can watch it.",
-  async upload(file, { userhash = null, signal } = {}) {
+  async upload(file, { userhash = null, signal, fresh = false } = {}) {
     const bytes = fs.statSync(file).size;
     if (bytes > this.limitBytes) {
       throw new Error(`Clip is ${(bytes / MB).toFixed(1)}MB; catbox allows 200MB. Render it smaller.`);
     }
-    const text = await postToCatbox(file, userhash, signal);
-
-    const check = await verifyUpload(text, bytes, { signal });
-    if (check.ok) return { url: text, host: "catbox", bytes };
-
-    // Retry ONCE with different bytes. Uploading the same file again is
-    // pointless - catbox dedupes by content and would hand back this very URL.
-    let copy = null;
+    // "Get a new link" has to send DIFFERENT BYTES to get a different URL.
+    // catbox dedupes by content, so re-uploading the same file hands back the
+    // link you already had - which is exactly what it did when asked for a new
+    // one. Re-muxing changes the hash without touching a frame.
+    let nudged = null;
     try {
-      copy = await nudgedCopy(file);
-      const retry = await postToCatbox(copy, userhash, signal);
-      const second = await verifyUpload(retry, bytes, { signal });
-      if (second.ok) return { url: retry, host: "catbox", bytes };
-      throw new Error(`catbox stored the clip as an empty file twice (${retry}). The clip itself is fine - try again in a minute, or switch host to litterbox.`);
+      if (fresh) nudged = await nudgedCopy(file);
+      const text = await postToCatbox(nudged ?? file, userhash, signal);
+
+      const check = await verifyUpload(text, bytes, { signal });
+      if (check.ok) return { url: text, host: "catbox", bytes };
+
+      // Stored empty. Retry ONCE with different bytes, for the same reason:
+      // the same file would just hand back this very URL again.
+      const copy = await nudgedCopy(nudged ?? file);
+      try {
+        const retry = await postToCatbox(copy, userhash, signal);
+        const second = await verifyUpload(retry, bytes, { signal });
+        if (second.ok) return { url: retry, host: "catbox", bytes };
+        throw new Error(`catbox stored the clip as an empty file twice (${retry}). The clip itself is fine - try again in a minute.`);
+      } finally {
+        fs.rmSync(copy, { force: true });
+      }
     } finally {
-      if (copy) fs.rmSync(copy, { force: true });
+      if (nudged) fs.rmSync(nudged, { force: true });
     }
   },
   async remove(url, { userhash }) {

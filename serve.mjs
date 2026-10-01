@@ -389,6 +389,7 @@ const routes = {
     const res = await share.upload(clip.file, {
       host,
       userhash: cfg.catboxUserhash ?? undefined,
+      fresh: !!body.again,          // a new link means new bytes, not a re-POST
     });
     lib.updateClip(clip.id, { url: res.url, host: res.host, sharedAt: new Date().toISOString() });
     return res;
